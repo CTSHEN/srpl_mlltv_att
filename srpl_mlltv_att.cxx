@@ -18,6 +18,8 @@
 
 #include "psopt.h"
 
+#define TOTAL_NODES 60
+
 using namespace PSOPT;
 
 
@@ -55,10 +57,22 @@ void dae(adouble* derivatives, adouble* path, adouble* states,
          adouble* xad, int iphase, Workspace* workspace)
 {
 
-    adouble u1 		   = controls[ 0 ];
-    adouble u2          = controls[ 1 ];
-    adouble u3          = controls[ 2 ];
-    adouble q4          = controls[ 3 ];
+    //adouble u1 		   = controls[ 0 ];
+    //adouble u2          = controls[ 1 ];
+    //adouble u3          = controls[ 2 ];
+    adouble T1          = controls[ 0 ];
+    adouble T2          = controls[ 1 ];
+    adouble T3          = controls[ 2 ];
+    adouble T4          = controls[ 3 ];
+    adouble T5          = controls[ 4 ];
+    adouble T6          = controls[ 5 ];
+    adouble T7          = controls[ 6 ];
+    adouble T8          = controls[ 7 ];
+    adouble q4          = controls[ 8 ];
+
+    adouble u1 = 1.74*T1    +4.2*T2     +4.2*T3     +1.74*T4    -1.74*T5    -4.2*T6     -4.2*T7     -1.74*T8;
+    adouble u2 = -4.2*T1    -1.74*T2    +1.73*T3    +4.2*T4     +4.2*T5     +1.74*T6    -1.74*T7    -4.2*T8;
+    adouble u3 = 2.625*(T1 - T2 + T3 - T4 + T5 - T6 + T7 - T8);
 
     adouble q1 		   = states[ 0 ];
     adouble q2 		   = states[ 1 ];
@@ -110,15 +124,15 @@ void events(adouble* e, adouble* initial_states, adouble* final_states,
     adouble omega2i     = initial_states[ 4 ];
     adouble omega3i     = initial_states[ 5 ];
 
-    adouble initial_controls[4], final_controls[4], q4i, q4f;
+    adouble initial_controls[9], final_controls[9], q4i, q4f;
 
     get_initial_controls( initial_controls, xad, iphase, workspace );
 
     get_final_controls(   final_controls  , xad, iphase, workspace );
 
-    q4i = initial_controls[ 3 ];
+    q4i = initial_controls[ 8 ];
 
-    q4f = final_controls[   3 ];
+    q4f = final_controls[   8 ];
 
     adouble q1f 	      = final_states[ 0 ];
     adouble q2f 	      = final_states[ 1 ];
@@ -181,7 +195,7 @@ int main(void)
 ///////////////////  Register problem name  ////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
 
-    problem.name        		= "Reorientation of a rigid body";
+    problem.name        		= "Micro LLTV attitude control";
     problem.outfilename                 = "reorientation.txt";
 
 ////////////////////////////////////////////////////////////////////////////
@@ -198,10 +212,10 @@ int main(void)
 /////////////////////////////////////////////////////////////////////////////
 
     problem.phases(1).nstates   		= 6;
-    problem.phases(1).ncontrols 		= 4;
+    problem.phases(1).ncontrols 		= 9;
     problem.phases(1).nevents   		= 14;
     problem.phases(1).npath     		= 1;
-    problem.phases(1).nodes         << 60;
+    problem.phases(1).nodes         << TOTAL_NODES;
 
 
     psopt_level2_setup(problem, algorithm);
@@ -217,9 +231,9 @@ int main(void)
     problem.phases(1).bounds.upper.states <<  1.0,     1.0,     1.0,    0.5,     0.5,   0.5;
 
 
-    problem.phases(1).bounds.lower.controls << -9.09,  -9.09, -9.09,  -1.0;
+    problem.phases(1).bounds.lower.controls << 0, 0, 0, 0, 0, 0, 0, 0, -1.0;
 
-    problem.phases(1).bounds.upper.controls <<  9.09,   9.09,  9.09,   1.0;
+    problem.phases(1).bounds.upper.controls << 1, 1, 1, 1, 1, 1, 1, 1, 1.0;
 
 
     problem.phases(1).bounds.lower.path(0) = 0.000;
@@ -341,7 +355,7 @@ int main(void)
     q1 = states.row(0);
     q2 = states.row(1);
     q3 = states.row(2);
-    q4 = controls.row(3);
+    q4 = controls.row(8);
     
     q.resize(4,length(t));
 
@@ -356,12 +370,16 @@ int main(void)
              states.row(4),
              states.row(5);
     
-    u.resize(3,length(t));
+    u.resize(8,length(t));
      
     u << controls.row(0),
          controls.row(1),
-         controls.row(2);
-
+         controls.row(2),
+         controls.row(3),
+         controls.row(4),
+         controls.row(5),
+         controls.row(6),
+         controls.row(7);
 
 ////////////////////////////////////////////////////////////////////////////
 ///////////  Save solution data to files if desired ////////////////////////
@@ -380,14 +398,16 @@ int main(void)
 
     multiplot(t,q,problem.name+": quarternion","time (s)", "q1 q2 q3 q4", "q1 q2 q3 q4", 2, 2);
 
-    multiplot(t,u, problem.name+": controls", "time (s)", "M1 M2 M3", "M1 M2 M3");
+    multiplot(t,u.topRows(4), problem.name+": controls", "time (s)", "Thrusters", "T1 T2 T3 T4", 2,2);
+    multiplot(t,u.bottomRows(4), problem.name+": controls", "time (s)", "Thrusters", "T5 T6 T7 T8", 2,2);
 
 
-    multiplot(t,q,problem.name+": quarternion","time (s)", "q1 q2 q3 q4", "q1 q2 q3 q4", 2, 2,
+
+    /*multiplot(t,q,problem.name+": quarternion","time (s)", "q1 q2 q3 q4", "q1 q2 q3 q4", 2, 2,
                 "pdf", "reorientation_q.pdf");
 
     multiplot(t,u, problem.name+": controls", "time (s)", "u1 u2 u3", "u1 u2 u3", 3, 1,
-               "pdf", "reorientation_u.pdf");
+               "pdf", "reorientation_u.pdf");*/
 
 
 }
